@@ -1,4 +1,5 @@
 import os
+import json
 import requests
 from dotenv import load_dotenv
 
@@ -27,7 +28,7 @@ while True:
 
     response = requests.get(url, params=params)
 
-    print("status:", response.status_code)
+    print("Playlist status:", response.status_code)
 
     data = response.json()
 
@@ -46,7 +47,9 @@ while True:
     if not next_page_token:
         break
 
-print("Total videos:", len(videos))
 
-for video in videos:
-    print(video)
+with open("data/playlist_videos.json", "w", encoding="utf-8") as file:
+    json.dump(videos, file, indent=4, ensure_ascii=False)
+
+print("Total videos:", len(videos))
+print("Playlist data saved.")
