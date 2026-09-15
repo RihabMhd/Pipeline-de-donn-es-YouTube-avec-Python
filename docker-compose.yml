@@ -1,0 +1,230 @@
+x-airflow-common:
+  &airflow-common
+
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+  image: youtube-airflow
+
+  env_file:
+    - .env
+
+  environment:
+    &airflow-common-env
+
+    # Use LocalExecutor instead of Celery
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+
+    # Airflow metadata database
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${METADATA_DATABASE_USERNAME}:${METADATA_DATABASE_PASSWORD}@${POSTGRES_CONN_HOST}:${POSTGRES_CONN_PORT}/${METADATA_DATABASE_NAME}
+
+    # Fernet encryption key
+    AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
+
+    # DAG configuration
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+
+    # Airflow authentication
+    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+
+    # Scheduler health check
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+
+    # PostgreSQL connection used by our ELT DAGs
+    AIRFLOW_CONN_POSTGRES_DB_YT_ELT: postgresql://${ELT_DATABASE_USERNAME}:${ELT_DATABASE_PASSWORD}@${POSTGRES_CONN_HOST}:${POSTGRES_CONN_PORT}/${ELT_DATABASE_NAME}
+
+    # YouTube variables
+    AIRFLOW_VAR_API_KEY: ${API_KEY}
+    AIRFLOW_VAR_CHANNEL_HANDLE: ${CHANNEL_HANDLE}
+
+    # ELT database variables
+    ELT_DATABASE_NAME: ${ELT_DATABASE_NAME}
+    ELT_DATABASE_USERNAME: ${ELT_DATABASE_USERNAME}
+    ELT_DATABASE_PASSWORD: ${ELT_DATABASE_PASSWORD}
+
+    POSTGRES_CONN_HOST: ${POSTGRES_CONN_HOST}
+    POSTGRES_CONN_PORT: ${POSTGRES_CONN_PORT}
+
+  volumes:
+    - ./config:/opt/airflow/config
+    - ./dags:/opt/airflow/dags
+    - ./data:/opt/airflow/data
+    - ./include:/opt/airflow/include
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+    - ./tests:/opt/airflow/tests
+
+  user: "${AIRFLOW_UID}:0"
+
+  depends_on:
+    &airflow-common-depends-on
+    postgres:
+      condition: service_healthy
+
+
+services:
+
+  # ============================================================
+  # PostgreSQL
+  # ============================================================
+
+  postgres:
+    container_name: postgres
+
+    image: postgres:13
+
+    env_file:
+      - .env
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_CONN_USERNAME}
+      POSTGRES_PASSWORD: ${POSTGRES_CONN_PASSWORD}
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+      - ./docker/postgres/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
+      - ./sql:/sql
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "pg_isready",
+          "-U",
+          "${POSTGRES_CONN_USERNAME}",
+          "-d",
+          "${METADATA_DATABASE_NAME}"
+        ]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+
+    restart: always
+
+
+  # ============================================================
+  # Airflow Webserver
+  # ============================================================
+
+  airflow-webserver:
+    <<: *airflow-common
+
+    command: webserver
+
+    container_name: airflow-webserver
+
+    ports:
+      - "8080:8080"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail",
+          "http://localhost:8080/health"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+    restart: always
+
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+
+  # ============================================================
+  # Airflow Scheduler
+  # ============================================================
+
+  airflow-scheduler:
+    <<: *airflow-common
+
+    command: scheduler
+
+    container_name: airflow-scheduler
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "--fail",
+          "http://localhost:8974/health"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+    restart: always
+
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+
+  # ============================================================
+  # Airflow Initialization
+  # ============================================================
+
+  airflow-init:
+    <<: *airflow-common
+
+    entrypoint: /bin/bash
+
+    container_name: airflow-init
+
+    command:
+      - -c
+      - |
+        if [[ -z "${AIRFLOW_UID}" ]]; then
+          echo
+          echo "WARNING: AIRFLOW_UID is not set."
+          echo
+        fi
+
+        mkdir -p /sources/dags
+        mkdir -p /sources/data
+        mkdir -p /sources/include
+        mkdir -p /sources/logs
+        mkdir -p /sources/tests
+
+        chown -R "${AIRFLOW_UID}:0" /sources/dags
+        chown -R "${AIRFLOW_UID}:0" /sources/data
+        chown -R "${AIRFLOW_UID}:0" /sources/include
+        chown -R "${AIRFLOW_UID}:0" /sources/logs
+        chown -R "${AIRFLOW_UID}:0" /sources/tests
+
+        exec /entrypoint airflow version
+
+    environment:
+      <<: *airflow-common-env
+
+      _AIRFLOW_DB_MIGRATE: 'true'
+
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_WWW_USER_USERNAME}
+
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_WWW_USER_PASSWORD}
+
+    user: "0:0"
+
+    volumes:
+      - .:/sources
+
+
+volumes:
+
+  postgres-db-volume:
