@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_HOST = DB_HOST = "localhost"
+DB_HOST="localhost"
 DB_PORT = os.getenv("POSTGRES_CONN_PORT")
 DB_NAME = os.getenv("ELT_DATABASE_NAME")
 DB_USER = os.getenv("ELT_DATABASE_USERNAME")
@@ -63,6 +63,21 @@ for video in videos:
             video["comment_count"]
         )
     )
+
+
+source_ids = [video["video_id"] for video in videos]
+
+if source_ids:
+    placeholders = ",".join(["%s"] * len(source_ids))
+
+    delete_sql = f"""
+        DELETE FROM staging.videos
+        WHERE video_id NOT IN ({placeholders});
+    """
+
+    cursor.execute(delete_sql, source_ids)
+
+    print("Deleted rows from staging:", cursor.rowcount)
 
 connection.commit()
 

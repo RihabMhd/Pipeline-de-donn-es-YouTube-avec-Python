@@ -97,6 +97,16 @@ for video in videos:
     ))
 
 
+cursor.execute("""
+    DELETE FROM core.videos
+    WHERE video_id NOT IN (
+        SELECT video_id
+        FROM staging.videos
+    );
+""")
+
+print("Deleted rows from core:", cursor.rowcount)
+
 connection.commit()
 
 cursor.close()
