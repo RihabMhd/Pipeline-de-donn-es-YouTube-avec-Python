@@ -40,7 +40,7 @@ def like_view_ratio(like, view, default=0):
     return like/view
 
 connection = psycopg2.connect(
-    host="localhost",
+    host=os.getenv("POSTGRES_CONN_HOST", "localhost"),
     port=os.getenv("POSTGRES_CONN_PORT"),
     database=os.getenv("ELT_DATABASE_NAME"),
     user=os.getenv("ELT_DATABASE_USERNAME"),
