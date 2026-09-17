@@ -1,30 +1,24 @@
 import os
-import re
 import psycopg2
 from dotenv import load_dotenv
-
+import isodate
+from datetime import datetime
 load_dotenv()
 
 
 def duration_to_seconds(duration):
-    hours = 0
-    minutes = 0
-    seconds = 0
+    parsed_duration=isodate.parse_duration(duration)
+    seconds=parsed_duration.total_seconds()
+    return seconds
 
-    match = re.search(r"(\d+)H", duration)
-    if match:
-        hours = int(match.group(1))
+def safe_int(value, default=0):
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
 
-    match = re.search(r"(\d+)M", duration)
-    if match:
-        minutes = int(match.group(1))
-
-    match = re.search(r"(\d+)S", duration)
-    if match:
-        seconds = int(match.group(1))
-
-    return hours * 3600 + minutes * 60 + seconds
-
+def safe_date(date):
+    return datetime.fromisoformat(date.replace("Z","+00:00"))
 
 connection = psycopg2.connect(
     host="localhost",
@@ -56,15 +50,15 @@ print("Videos loaded from staging:", len(videos))
 
 for video in videos:
 
-    video_id = video[0]
-    title = video[1]
-    published_at = video[2]
-    duration = video[3]
-    view_count = video[4]
-    like_count = video[5]
-    comment_count = video[6]
+    video_id=video[0]
+    title=video[1]
+    published_at=safe_date(video[2])
+    duration=video[3]
+    view_count=safe_int(video[4])
+    like_count=safe_int(video[5])
+    comment_count=safe_int(video[6])
 
-    duration_seconds = duration_to_seconds(duration)
+    duration_seconds=duration_to_seconds(duration)
 
     cursor.execute("""
         INSERT INTO core.videos (
@@ -80,12 +74,12 @@ for video in videos:
 
         ON CONFLICT (video_id)
         DO UPDATE SET
-            title = EXCLUDED.title,
-            published_at = EXCLUDED.published_at,
-            duration_seconds = EXCLUDED.duration_seconds,
-            view_count = EXCLUDED.view_count,
-            like_count = EXCLUDED.like_count,
-            comment_count = EXCLUDED.comment_count;
+            title=EXCLUDED.title,
+            published_at=EXCLUDED.published_at,
+            duration_seconds=EXCLUDED.duration_seconds,
+            view_count=EXCLUDED.view_count,
+            like_count=EXCLUDED.like_count,
+            comment_count=EXCLUDED.comment_count;
     """, (
         video_id,
         title,

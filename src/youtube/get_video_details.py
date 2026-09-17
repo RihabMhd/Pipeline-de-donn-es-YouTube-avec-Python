@@ -6,9 +6,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "data")
+
 API_KEY = os.getenv("API_KEY")
 
-with open("data/playlist_videos.json", "r", encoding="utf-8") as file:
+with open(os.path.join(DATA_DIR, "playlist_videos.json"), "r", encoding="utf-8") as file:
     videos = json.load(file)
 
 print("Videos loaded:", len(videos))
@@ -64,7 +67,7 @@ for i in range(0, len(video_ids), 50):
 
 today = date.today().isoformat()
 
-filename = f"data/YT_data_{today}.json"
+filename = os.path.join(DATA_DIR, f"YT_data_{today}.json")
 
 with open(filename, "w", encoding="utf-8") as file:
     json.dump(

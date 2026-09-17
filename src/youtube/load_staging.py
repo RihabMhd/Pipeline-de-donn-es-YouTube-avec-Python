@@ -2,16 +2,20 @@ import os
 import json
 import psycopg2
 from dotenv import load_dotenv
+from datetime import date
 
 load_dotenv()
 
-DB_HOST="localhost"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "data")
+
+DB_HOST=os.getenv("POSTGRES_CONN_HOST")
 DB_PORT = os.getenv("POSTGRES_CONN_PORT")
 DB_NAME = os.getenv("ELT_DATABASE_NAME")
 DB_USER = os.getenv("ELT_DATABASE_USERNAME")
 DB_PASSWORD = os.getenv("ELT_DATABASE_PASSWORD")
 
-JSON_FILE = "data/YT_data_2026-09-15.json"
+JSON_FILE = os.path.join(DATA_DIR, f"YT_data_{date.today().isoformat()}.json")
 
 
 with open(JSON_FILE,'r',encoding='utf-8') as file:

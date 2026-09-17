@@ -1,14 +1,14 @@
 from datetime import datetime
 
-from airflow import DAG
-from airflow.operators.python import PythonOperator
+import importlib
 
 
-def test_extraction():
-    print("DAG 1 - Extraction started")
+airflow = importlib.import_module("airflow")
+PythonOperator = importlib.import_module("airflow.operators.python").PythonOperator
+BashOperator = importlib.import_module("airflow.operators.bash").BashOperator
+bash_command="python /opt/airflow/src/youtube/get_playlist.py"
 
-
-with DAG(
+with airflow.DAG(
     dag_id="youtube_extraction",
     start_date=datetime(2026, 9, 14),
     schedule=None,
@@ -16,7 +16,14 @@ with DAG(
     tags=["youtube", "extraction"],
 ) as dag:
 
-    extraction = PythonOperator(
-        task_id="extraction",
-        python_callable=test_extraction,
+    extraction = BashOperator(
+    task_id="extract_playlist",
+    bash_command="python /opt/airflow/src/youtube/get_playlist.py"
+)
+
+    get_details = BashOperator(
+        task_id="get_video_details",
+        bash_command="python /opt/airflow/src/youtube/get_video_details.py"
     )
+
+    extraction >> get_details
