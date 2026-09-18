@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) #means getting the directory ex:C:\project\src\youtube
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "data")
 
 API_KEY = os.getenv("API_KEY")
