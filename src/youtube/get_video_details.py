@@ -41,12 +41,7 @@ for i in range(0, len(video_ids), 50):
     }
 
     response = requests.get(url, params=params)
-
-    print(
-        f"batch {i // 50 + 1} | "
-        f"status: {response.status_code}"
-    )
-
+    
     data = response.json()
 
     for item in data.get("items", []):
