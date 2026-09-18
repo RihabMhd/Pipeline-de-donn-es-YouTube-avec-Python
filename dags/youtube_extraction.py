@@ -28,4 +28,4 @@ with DAG(
         trigger_dag_id="youtube_dwh_update"
     )
 
-    extraction >> get_details >> trigger_dag2
+    extraction >> get_details >> trigger_dag2 #dependence
