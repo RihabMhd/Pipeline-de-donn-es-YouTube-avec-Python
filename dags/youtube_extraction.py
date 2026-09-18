@@ -9,7 +9,7 @@ with DAG(
     dag_id="youtube_extraction",
     start_date=datetime(2026, 9, 14),
     schedule='@daily',
-    catchup=False,
+    catchup=False, #whether airflow should automatically run missed scheduled periods from the past or not
     tags=["youtube", "extraction"],
 ) as dag:
 
