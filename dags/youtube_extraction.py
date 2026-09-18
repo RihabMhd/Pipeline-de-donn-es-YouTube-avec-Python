@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from airflow import DAG
-from airflow.operators.bash import BashOperator
+from airflow.operators.bash import BashOperator #allows Airflow to execute a command in the Airflow environment
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 
